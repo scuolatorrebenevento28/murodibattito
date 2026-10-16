@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Muro del dibattito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Patrick+Hand&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bar:#E9E1CF; --wall:#FBFAF5; --grid:#D3E2EE; --ink:#24323C; --muted:#6B7680; --line:#D9534F;
+  --pro:#2E7D4F; --con:#C0392B; --surface:#FFFDF8; --overlay:rgba(30,25,15,.5);
+  --board:#2F4A3C; --chalk:#F4F1E6; --wood:#A8713F; --pencil:#F5C542;
+  --pro-bg:rgba(46,125,79,.06); --con-bg:rgba(192,57,43,.06);
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bar); color:var(--ink);
+  font-family:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid #3A7BD5;outline-offset:3px}
+
+/* Header */
+.top{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin:14px 14px 12px;padding:12px 20px;border-radius:10px;
+  background:var(--board);color:var(--chalk);border:10px solid var(--wood);
+  box-shadow:inset 0 0 50px rgba(0,0,0,.35), 0 6px 14px -8px rgba(0,0,0,.4);
+}
+.topic{
+  flex:1 1 320px;margin:0;font-family:"Caveat","Patrick Hand",cursive;font-weight:700;line-height:1.05;
+  font-size:clamp(1.9rem,3.6vw,3.4rem);overflow-wrap:anywhere;
+}
+.topic.empty{color:rgba(244,241,230,.55);font-weight:600}
+.top .btn{border-color:var(--chalk);color:var(--chalk)}
+.top .btn.primary{background:var(--pencil);border-color:var(--pencil);color:#2A2A2A}
+.top .btn.danger{border-color:#F4AAA2;color:#F4AAA2}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{
+  min-height:52px;padding:0 20px;border-radius:12px;font-size:1.05rem;font-weight:700;
+  border:2px solid var(--ink);background:transparent;
+}
+.btn.primary{background:var(--ink);color:var(--bar)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.danger{border-color:var(--con);color:var(--con)}
+
+/* Wall */
+.wall{
+  flex:1;position:relative;margin:0 14px 14px;border-radius:10px;overflow:hidden;
+  background-color:var(--wall);
+  background-image:linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:26px 26px;border:10px solid var(--wood);
+  box-shadow:0 6px 14px -8px rgba(0,0,0,.4);touch-action:none;min-height:300px;
+}
+.side{position:absolute;top:0;bottom:0;width:50%;cursor:copy}
+.side.pro{left:0;background:var(--pro-bg)}
+.side.con{right:0;background:var(--con-bg)}
+.side h2{
+  margin:0;padding:12px 24px;font-family:"Caveat","Patrick Hand",cursive;font-size:clamp(1.8rem,3vw,2.8rem);font-weight:700;
+  pointer-events:none;
+}
+.side.pro h2{color:var(--pro)}
+.side.con h2{color:var(--con);text-align:right}
+.side h2 .n{font-weight:400;opacity:.75}
+.hint{
+  position:absolute;left:0;right:0;top:45%;text-align:center;padding:0 40px;
+  color:var(--muted);font-size:1.15rem;pointer-events:none;
+}
+.midline{position:absolute;left:50%;top:0;bottom:0;width:6px;transform:translateX(-50%);background:linear-gradient(90deg,var(--line) 0 2px,transparent 2px 4px,var(--line) 4px 6px);pointer-events:none}
+.add{
+  position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:20;
+  height:66px;padding:0 30px;border-radius:999px;border:3px solid var(--ink);
+  background:var(--pencil);color:var(--ink);font-size:1.25rem;font-weight:700;
+  box-shadow:0 8px 20px -6px rgba(0,0,0,.45);white-space:nowrap;
+}
+.add span{font-size:1.7rem;line-height:0;vertical-align:-3px;margin-right:6px}
+
+/* Post-it */
+.note{
+  position:absolute;width:var(--nw,180px);min-height:var(--nw,180px);
+  padding:16px 14px 18px;color:#2A2A2A;
+  font-family:"Patrick Hand","Comic Sans MS",cursive;
+  font-size:calc(var(--nw,180px) * .105);line-height:1.2;
+  white-space:pre-wrap;overflow-wrap:anywhere;
+  box-shadow:0 7px 12px -5px rgba(0,0,0,.4), inset 0 14px 0 -2px rgba(0,0,0,.05);
+  cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;z-index:2;
+}
+.note.dragging{cursor:grabbing;z-index:15;box-shadow:0 18px 28px -8px rgba(0,0,0,.45)}
+.note.fresh{animation:stick .32s ease-out}
+@keyframes stick{from{opacity:0;scale:1.25}to{opacity:1;scale:1}}
+@media (prefers-reduced-motion: reduce){.note.fresh{animation:none}}
+
+/* Dialogs */
+.overlay{position:fixed;inset:0;background:var(--overlay);display:none;place-items:center;z-index:50;padding:16px}
+.overlay.open{display:grid}
+.panel{
+  background:var(--surface);color:var(--ink);border-radius:20px;padding:26px;
+  width:min(600px,100%);max-height:94vh;overflow:auto;
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.5);
+}
+.panel h3{margin:0 0 16px;font-size:1.5rem}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.seg button{min-height:58px;border-radius:12px;font-size:1.2rem;font-weight:700;background:transparent;border:2px solid currentColor}
+.seg .pro{color:var(--pro)} .seg .con{color:var(--con)}
+.seg .pro[aria-pressed="true"]{background:var(--pro);color:#fff;border-color:var(--pro)}
+.seg .con[aria-pressed="true"]{background:var(--con);color:#fff;border-color:var(--con)}
+.swatches{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.swatch{width:54px;height:54px;border-radius:50%;border:3px solid transparent;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.swatch[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 3px var(--surface) inset, 0 2px 6px rgba(0,0,0,.25)}
+.paper{
+  display:block;width:100%;height:210px;resize:none;border:none;border-radius:2px;
+  padding:18px;font-family:"Patrick Hand","Comic Sans MS",cursive;font-size:1.7rem;line-height:1.2;
+  color:#2A2A2A;box-shadow:0 8px 16px -6px rgba(0,0,0,.35);
+}
+.paper::placeholder{color:rgba(0,0,0,.4)}
+.count{text-align:right;color:var(--muted);margin:8px 0 18px;font-size:1rem}
+.count.full{color:var(--con);font-weight:700}
+.row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.row .spacer{flex:1}
+.topic-input{
+  width:100%;min-height:120px;resize:vertical;padding:14px;border-radius:12px;
+  border:2px solid var(--muted);background:transparent;color:var(--ink);
+  font:inherit;font-size:1.35rem;line-height:1.3;margin-bottom:18px;
+}
+.panel p{margin:0 0 20px;font-size:1.1rem;line-height:1.45;color:var(--muted)}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--ink);color:var(--bar);padding:14px 22px;border-radius:12px;font-size:1.05rem;
+  z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.toast.show{opacity:1}
+@media (max-width:640px){
+  .btn{min-height:46px;padding:0 14px;font-size:.95rem}
+  .add{height:56px;font-size:1.05rem;padding:0 20px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1 class="topic empty" id="topic">Nessun tema impostato</h1>
+  <div class="actions">
+    <button class="btn" id="editTopic">Modifica tema</button>
+    <button class="btn danger" id="clearBtn">Svuota muro</button>
+    <button class="btn primary" id="dlBtn" disabled title="Preparazione del download…">Scarica PNG</button>
+  </div>
+</header>
+
+<main class="wall" id="wall">
+  <div class="side pro" data-side="pro"><h2>A favore <span class="n" id="nPro">(0)</span></h2><div class="hint" id="hintPro">Tocca qui per attaccare un post-it a favore</div></div>
+  <div class="side con" data-side="con"><h2>Contro <span class="n" id="nCon">(0)</span></h2><div class="hint" id="hintCon">Tocca qui per attaccare un post-it contro</div></div>
+  <div class="midline"></div>
+  <div id="notes"></div>
+  <button class="add" id="addBtn"><span>+</span>Aggiungi post-it</button>
+</main>
+
+<!-- Editor post-it -->
+<div class="overlay" id="noteDlg" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
+  <div class="panel">
+    <h3 id="noteTitle">Nuovo post-it</h3>
+    <div class="seg" role="group" aria-label="Posizione">
+      <button class="pro" data-side="pro" aria-pressed="true">A favore</button>
+      <button class="con" data-side="con" aria-pressed="false">Contro</button>
+    </div>
+    <div class="swatches" id="swatches" role="group" aria-label="Colore"></div>
+    <textarea class="paper" id="noteText" maxlength="150" placeholder="Scrivi la tua idea…"></textarea>
+    <div class="count" id="count">0 / 150</div>
+    <div class="row">
+      <button class="btn danger" id="delNote" hidden>Elimina</button>
+      <span class="spacer"></span>
+      <button class="btn" id="cancelNote">Annulla</button>
+      <button class="btn primary" id="saveNote">Attacca al muro</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tema -->
+<div class="overlay" id="topicDlg" role="dialog" aria-modal="true" aria-labelledby="topicTitle">
+  <div class="panel">
+    <h3 id="topicTitle">Tema del dibattito</h3>
+    <textarea class="topic-input" id="topicInput" maxlength="200" placeholder="Es. I compiti a casa andrebbero aboliti"></textarea>
+    <div class="row">
+      <button class="btn" id="cancelTopic">Annulla</button>
+      <button class="btn primary" id="saveTopic">Salva tema</button>
+    </div>
+  </div>
+</div>
+
+<!-- Conferma -->
+<div class="overlay" id="confirmDlg" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="panel">
+    <h3 id="confirmTitle">Svuotare il muro?</h3>
+    <p>Tutti i post-it verranno rimossi. Il tema resta. Scarica prima il PNG se vuoi conservarli.</p>
+    <div class="row">
+      <button class="btn" id="cancelClear">Annulla</button>
+      <button class="btn primary" id="okClear" style="background:var(--con);border-color:var(--con);color:#fff">Svuota muro</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const COLORS = [
+  {name:"Giallo", hex:"#FFE873"},
+  {name:"Rosa", hex:"#FFA3C8"},
+  {name:"Azzurro", hex:"#95D5FF"},
+  {name:"Verde", hex:"#AEE8A5"},
+  {name:"Arancio", hex:"#FFBE78"},
+  {name:"Lilla", hex:"#CFBCFF"}
+];
+const KEY = "muro-dibattito-v1";
+const $ = s => document.querySelector(s);
+const wall = $("#wall"), notesLayer = $("#notes");
+
+let state = {topic:"", notes:[]};
+try { const raw = localStorage.getItem(KEY); if (raw) state = Object.assign(state, JSON.parse(raw)); } catch(e) {}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+
+/* ---------- geometry ---------- */
+const PAD = 14, LINE_GAP = 6;
+function geom(){
+  const W = wall.clientWidth, H = wall.clientHeight;
+  const nw = Math.round(Math.max(120, Math.min(220, W * 0.12)));
+  const head = wall.querySelector(".side h2").offsetHeight;
+  const half = W / 2;
+  const availW = Math.max(0, half - nw - PAD * 2 - LINE_GAP);
+  return {W, H, nw, head, half, availW};
+}
+function sideStart(side, g){ return side === "pro" ? PAD : g.half + PAD + LINE_GAP; }
+function place(el, n, g){
+  const h = el.offsetHeight || g.nw;
+  const availH = Math.max(0, g.H - g.head - h - PAD);
+  el.style.left = (sideStart(n.side, g) + n.sx * g.availW) + "px";
+  el.style.top = (g.head + n.sy * availH) + "px";
+}
+
+/* ---------- render ---------- */
+function renderTopic(){
+  const t = $("#topic");
+  t.textContent = state.topic || "Nessun tema impostato";
+  t.classList.toggle("empty", !state.topic);
+  document.title = state.topic ? "Muro: " + state.topic : "Muro del dibattito";
+}
+function renderCounts(){
+  const p = state.notes.filter(n => n.side === "pro").length;
+  const c = state.notes.length - p;
+  $("#nPro").textContent = "(" + p + ")";
+  $("#nCon").textContent = "(" + c + ")";
+  $("#hintPro").hidden = p > 0;
+  $("#hintCon").hidden = c > 0;
+}
+function renderNotes(freshId){
+  const g = geom();
+  wall.style.setProperty("--nw", g.nw + "px");
+  notesLayer.innerHTML = "";
+  for (const n of state.notes){
+    const el = document.createElement("div");
+    el.className = "note" + (n.id === freshId ? " fresh" : "");
+    el.dataset.id = n.id;
+    el.textContent = n.text;
+    el.style.background = n.color;
+    el.style.rotate = n.rot + "deg";
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", (n.side === "pro" ? "A favore: " : "Contro: ") + n.text + ". Premi per modificare");
+    notesLayer.appendChild(el);
+    place(el, n, g);
+    bindDrag(el, n);
+  }
+  renderCounts();
+}
+function relayout(){
+  const g = geom();
+  wall.style.setProperty("--nw", g.nw + "px");
+  notesLayer.querySelectorAll(".note").forEach(el => {
+    const n = state.notes.find(x => x.id === el.dataset.id);
+    if (n) place(el, n, g);
+  });
+}
+new ResizeObserver(relayout).observe(wall);
+
+/* ---------- placement for new notes ---------- */
+function freeSpot(side){
+  const g = geom();
+  const estH = g.nw * 1.15;
+  const availH = Math.max(0, g.H - g.head - estH - PAD);
+  const rects = [...notesLayer.querySelectorAll(".note")]
+    .filter(el => state.notes.find(n => n.id === el.dataset.id)?.side === side)
+    .map(el => ({x:el.offsetLeft, y:el.offsetTop, w:el.offsetWidth, h:el.offsetHeight}));
+  let best = null;
+  for (let i = 0; i < 80; i++){
+    const sx = Math.random(), sy = Math.random() * 0.92;
+    const x = sideStart(side, g) + sx * g.availW, y = g.head + sy * availH;
+    let ov = 0;
+    for (const r of rects){
+      const ox = Math.max(0, Math.min(x + g.nw, r.x + r.w) - Math.max(x, r.x));
+      const oy = Math.max(0, Math.min(y + estH, r.y + r.h) - Math.max(y, r.y));
+      ov += ox * oy;
+    }
+    if (!best || ov < best.ov){ best = {sx, sy, ov}; if (ov === 0 && i > 10) break; }
+  }
+  return best;
+}
+
+/* ---------- drag ---------- */
+function bindDrag(el, n){
+  let start = null;
+  el.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    el.setPointerCapture(e.pointerId);
+    start = {px:e.clientX, py:e.clientY, left:el.offsetLeft, top:el.offsetTop, moved:false};
+  });
+  el.addEventListener("pointermove", e => {
+    if (!start) return;
+    const dx = e.clientX - start.px, dy = e.clientY - start.py;
+    if (!start.moved && Math.hypot(dx, dy) < 8) return;
+    if (!start.moved){ start.moved = true; el.classList.add("dragging"); notesLayer.appendChild(el); }
+    const g = geom();
+    const left = start.left + dx, top = start.top + dy;
+    const side = (left + g.nw / 2) < g.half ? "pro" : "con";
+    const h = el.offsetHeight;
+    const availH = Math.max(1, g.H - g.head - h - PAD);
+    n.side = side;
+    n.sx = g.availW ? Math.min(1, Math.max(0, (left - sideStart(side, g)) / g.availW)) : 0;
+    n.sy = Math.min(1, Math.max(0, (top - g.head) / availH));
+    place(el, n, g);
+    renderCounts();
+  });
+  const end = () => {
+    if (!start) return;
+    const wasMoved = start.moved;
+    start = null;
+    el.classList.remove("dragging");
+    if (wasMoved){
+      // keep stacking order: dragged note goes on top
+      state.notes = state.notes.filter(x => x !== n).concat(n);
+      save();
+      el.setAttribute("aria-label", (n.side === "pro" ? "A favore: " : "Contro: ") + n.text + ". Premi per modificare");
+    } else {
+      openEditor(n);
+    }
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", () => { start = null; el.classList.remove("dragging"); });
+  el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); openEditor(n); } });
+}
+
+/* ---------- note editor ---------- */
+let editing = null, draft = {side:"pro", color:COLORS[0].hex};
+const sw = $("#swatches");
+COLORS.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "swatch"; b.style.background = c.hex; b.dataset.hex = c.hex;
+  b.setAttribute("aria-label", c.name);
+  b.onclick = () => { draft.color = c.hex; syncEditor(); };
+  sw.appendChild(b);
+});
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { draft.side = b.dataset.side; syncEditor(); });
+function syncEditor(){
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.side === draft.side));
+  sw.querySelectorAll(".swatch").forEach(b => b.setAttribute("aria-pressed", b.dataset.hex === draft.color));
+  $("#noteText").style.background = draft.color;
+  updateCount();
+}
+function updateCount(){
+  const len = $("#noteText").value.length;
+  $("#count").textContent = len + " / 150";
+  $("#count").classList.toggle("full", len >= 150);
+  $("#saveNote").disabled = $("#noteText").value.trim().length === 0;
+}
+$("#noteText").addEventListener("input", updateCount);
+
+function openEditor(n, side){
+  editing = n || null;
+  draft = n ? {side:n.side, color:n.color} : {side: side || draft.side || "pro", color: draft.color || COLORS[0].hex};
+  $("#noteText").value = n ? n.text : "";
+  $("#noteTitle").textContent = n ? "Modifica post-it" : "Nuovo post-it";
+  $("#saveNote").textContent = n ? "Salva" : "Attacca al muro";
+  $("#delNote").hidden = !n;
+  syncEditor();
+  open("#noteDlg");
+  setTimeout(() => $("#noteText").focus(), 50);
+}
+$("#saveNote").onclick = () => {
+  const text = $("#noteText").value.trim().slice(0, 150);
+  if (!text) return;
+  let freshId = null;
+  if (editing){
+    const sideChanged = editing.side !== draft.side;
+    Object.assign(editing, {text, color:draft.color, side:draft.side});
+    if (sideChanged){ const s = freeSpot(draft.side); editing.sx = s.sx; editing.sy = s.sy; }
+  } else {
+    const s = freeSpot(draft.side);
+    const n = {id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      text, color:draft.color, side:draft.side, sx:s.sx, sy:s.sy,
+      rot: Math.round((Math.random() * 7 - 3.5) * 10) / 10};
+    state.notes.push(n); freshId = n.id;
+  }
+  save(); close("#noteDlg"); renderNotes(freshId);
+};
+$("#delNote").onclick = () => {
+  if (!editing) return;
+  state.notes = state.notes.filter(x => x !== editing);
+  save(); close("#noteDlg"); renderNotes(); toast("Post-it eliminato");
+};
+$("#cancelNote").onclick = () => close("#noteDlg");
+$("#addBtn").onclick = e => { e.stopPropagation(); openEditor(null); };
+document.querySelectorAll(".side").forEach(s => s.addEventListener("click", () => openEditor(null, s.dataset.side)));
+
+/* ---------- topic ---------- */
+function openTopic(){
+  $("#topicInput").value = state.topic;
+  $("#cancelTopic").hidden = !state.topic;
+  open("#topicDlg");
+  setTimeout(() => $("#topicInput").focus(), 50);
+}
+$("#editTopic").onclick = openTopic;
+$("#saveTopic").onclick = () => {
+  const t = $("#topicInput").value.trim();
+  if (!t){ $("#topicInput").focus(); return; }
+  state.topic = t; save(); renderTopic(); close("#topicDlg");
+  requestAnimationFrame(relayout);
+};
+$("#cancelTopic").onclick = () => close("#topicDlg");
+
+/* ---------- clear ---------- */
+$("#clearBtn").onclick = () => { if (!state.notes.length){ toast("Il muro è già vuoto"); return; } open("#confirmDlg"); };
+$("#cancelClear").onclick = () => close("#confirmDlg");
+$("#okClear").onclick = () => { state.notes = []; save(); close("#confirmDlg"); renderNotes(); toast("Muro svuotato"); };
+
+/* ---------- dialogs ---------- */
+function open(sel){ $(sel).classList.add("open"); }
+function close(sel){ $(sel).classList.remove("open"); }
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => {
+  if (e.target === o && !(o.id === "topicDlg" && !state.topic)) o.classList.remove("open");
+}));
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  ["#noteDlg", "#confirmDlg"].forEach(close);
+  if (state.topic) close("#topicDlg");
+});
+
+let tt;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 2400); }
+
+/* ---------- PNG export ---------- */
+function wrapLines(ctx, text, maxW){
+  const lines = [];
+  for (const para of text.split("\n")){
+    let line = "";
+    for (const word of para.split(/\s+/)){
+      if (!word) continue;
+      const test = line ? line + " " + word : word;
+      if (ctx.measureText(test).width <= maxW){ line = test; continue; }
+      if (line) lines.push(line);
+      let w = word;
+      while (ctx.measureText(w).width > maxW && w.length > 1){
+        let i = w.length;
+        while (i > 1 && ctx.measureText(w.slice(0, i)).width > maxW) i--;
+        lines.push(w.slice(0, i)); w = w.slice(i);
+      }
+      line = w;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+async function buildPNG(){
+  await document.fonts.ready;
+  const W = wall.clientWidth, H = wall.clientHeight, S = 2, M = 28, F = 10;
+  const HAND = '"Patrick Hand", "Comic Sans MS", cursive';
+  const CHALK = '"Caveat", "Patrick Hand", cursive';
+  const P = {bg:"#E9E1CF", board:"#2F4A3C", chalk:"#F4F1E6", wood:"#A8713F", paper:"#FBFAF5", grid:"#D3E2EE", pro:"#2E7D4F", con:"#C0392B", line:"#D9534F"};
+
+  const measure = document.createElement("canvas").getContext("2d");
+  const titleSize = 54;
+  measure.font = `700 ${titleSize}px ${CHALK}`;
+  const titleLines = wrapLines(measure, state.topic || "Muro del dibattito", W - 40);
+  const boardH = titleLines.length * titleSize * 1.1 + 36;
+  const wallTop = M + boardH + F * 2 + 18;
+  const totalW = W + F * 2 + M * 2, totalH = wallTop + H + F * 2 + M;
+
+  const cv = document.createElement("canvas");
+  cv.width = totalW * S; cv.height = totalH * S;
+  const ctx = cv.getContext("2d");
+  ctx.scale(S, S);
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, totalW, totalH);
+
+  // lavagna con il tema
+  ctx.fillStyle = P.wood; roundRect(ctx, M, M, W + F * 2, boardH + F * 2, 10); ctx.fill();
+  ctx.fillStyle = P.board; ctx.fillRect(M + F, M + F, W, boardH);
+  ctx.fillStyle = P.chalk; ctx.font = `700 ${titleSize}px ${CHALK}`; ctx.textBaseline = "top";
+  titleLines.forEach((l, i) => ctx.fillText(l, M + F + 20, M + F + 18 + i * titleSize * 1.1));
+
+  // muro a quadretti con cornice
+  ctx.fillStyle = P.wood; roundRect(ctx, M, wallTop, W + F * 2, H + F * 2, 10); ctx.fill();
+  ctx.save();
+  ctx.translate(M + F, wallTop + F);
+  ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
+  ctx.fillStyle = P.paper; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = P.grid;
+  for (let gx = 0; gx < W; gx += 26) ctx.fillRect(gx, 0, 1, H);
+  for (let gy = 0; gy < H; gy += 26) ctx.fillRect(0, gy, W, 1);
+  ctx.fillStyle = "rgba(46,125,79,.06)"; ctx.fillRect(0, 0, W / 2, H);
+  ctx.fillStyle = "rgba(192,57,43,.06)"; ctx.fillRect(W / 2, 0, W / 2, H);
+
+  const h2 = wall.querySelector(".side h2");
+  const h2Size = parseFloat(getComputedStyle(h2).fontSize);
+  const p = state.notes.filter(n => n.side === "pro").length, c = state.notes.length - p;
+  ctx.font = `700 ${h2Size}px ${CHALK}`; ctx.textBaseline = "top";
+  ctx.fillStyle = P.pro; ctx.textAlign = "left"; ctx.fillText(`A favore (${p})`, 24, 12);
+  ctx.fillStyle = P.con; ctx.textAlign = "right"; ctx.fillText(`Contro (${c})`, W - 24, 12);
+  ctx.textAlign = "left";
+  ctx.fillStyle = P.line; ctx.fillRect(W / 2 - 3, 0, 2, H); ctx.fillRect(W / 2 + 1, 0, 2, H);
+
+  for (const el of notesLayer.querySelectorAll(".note")){
+    const n = state.notes.find(x => x.id === el.dataset.id); if (!n) continue;
+    const x = el.offsetLeft, y = el.offsetTop, w = el.offsetWidth, h = el.offsetHeight;
+    const fs = parseFloat(getComputedStyle(el).fontSize);
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(n.rot * Math.PI / 180);
+    ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 6;
+    ctx.fillStyle = n.color; ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.shadowColor = "transparent";
+    ctx.fillStyle = "rgba(0,0,0,.05)"; ctx.fillRect(-w / 2, -h / 2, w, 12);
+    ctx.fillStyle = "#2A2A2A"; ctx.font = `${fs}px ${HAND}`; ctx.textBaseline = "top";
+    wrapLines(ctx, n.text, w - 28).forEach((l, i) => ctx.fillText(l, -w / 2 + 14, -h / 2 + 16 + i * fs * 1.2));
+    ctx.restore();
+  }
+  ctx.restore();
+  return new Promise(res => cv.toBlob(res, "image/png"));
+}
+
+let downloads = null;
+const dlBtn = $("#dlBtn");
+function saveDirect(blob, filename){
+  // file aperto fuori da claude.ai (es. HTML scaricato): download classico del browser
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.style.display = "none";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+dlBtn.onclick = async () => {
+  dlBtn.disabled = true;
+  try {
+    const blob = await buildPNG();
+    const slug = (state.topic || "muro").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "muro";
+    const filename = "muro-" + slug + ".png";
+    if (downloads) await downloads.save({filename, data: blob});
+    else saveDirect(blob, filename);
+    toast("Immagine salvata");
+  } catch (e) {
+    const code = e && e.code;
+    if (code === "declined") {}
+    else if (code === "rate_limited") toast("C'è già un download in attesa, riprova tra poco");
+    else toast("Download non riuscito su questo dispositivo");
+  } finally { dlBtn.disabled = false; }
+};
+(async () => {
+  const inClaude = !!(window.claude && window.claude.use);
+  if (!inClaude){ dlBtn.disabled = false; dlBtn.title = ""; return; }
+  try { downloads = await window.claude.use("downloads"); } catch(e) { downloads = null; }
+  dlBtn.disabled = false; dlBtn.title = "";
+})();
+
+/* ---------- start ---------- */
+renderTopic();
+requestAnimationFrame(() => { renderNotes(); if (!state.topic) openTopic(); });
+</script>
+</body>
+</html>
